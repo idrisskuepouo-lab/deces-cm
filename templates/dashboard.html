@@ -1,0 +1,287 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Registre National des Décès{% endblock %}
+{% block page_title %}Tableau de bord{% endblock %}
+{% block head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+
+<!-- KPI Row -->
+<div class="stats-grid">
+  <div class="sc crimson">
+    <div class="sc-icon crimson"><i class="fa-solid fa-skull"></i></div>
+    <div class="sc-val" id="kpi-total">—</div>
+    <div class="sc-lbl">Décès enregistrés</div>
+  </div>
+  <div class="sc gold">
+    <div class="sc-icon gold"><i class="fa-solid fa-calendar-day"></i></div>
+    <div class="sc-val" id="kpi-mois">—</div>
+    <div class="sc-lbl">Ce mois-ci</div>
+  </div>
+  <div class="sc teal">
+    <div class="sc-icon teal"><i class="fa-solid fa-chart-line"></i></div>
+    <div class="sc-val" id="kpi-age">—</div>
+    <div class="sc-lbl">Âge moyen au décès</div>
+  </div>
+  <div class="sc slate">
+    <div class="sc-icon slate"><i class="fa-solid fa-venus-mars"></i></div>
+    <div class="sc-val" id="kpi-ratio">—</div>
+    <div class="sc-lbl">Ratio H/F</div>
+  </div>
+</div>
+
+<!-- Charts row 1 -->
+<div style="display:grid;grid-template-columns:1.4fr 1fr;gap:16px;margin-bottom:16px;" id="row1">
+  <div class="card">
+    <div class="card-hd" style="padding-bottom:12px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div class="card-title">Évolution mensuelle des décès</div>
+        <span class="badge bsl">6 derniers mois</span>
+      </div>
+    </div>
+    <div class="card-bd">
+      <div class="chart-box"><canvas id="chartMonthly"></canvas></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hd" style="padding-bottom:12px;">
+      <div class="card-title">Répartition par sexe</div>
+    </div>
+    <div class="card-bd">
+      <div class="chart-box" style="height:200px;"><canvas id="chartSexe"></canvas></div>
+      <div style="display:flex;gap:18px;justify-content:center;margin-top:14px;" id="sexeLegend"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Charts row 2 -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+  <div class="card">
+    <div class="card-hd" style="padding-bottom:12px;">
+      <div class="card-title">Principales causes de décès</div>
+    </div>
+    <div class="card-bd">
+      <div class="chart-box" style="height:240px;"><canvas id="chartCauses"></canvas></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hd" style="padding-bottom:12px;">
+      <div class="card-title">Tranches d'âge</div>
+    </div>
+    <div class="card-bd">
+      <div class="chart-box" style="height:240px;"><canvas id="chartAge"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- Row 3: Régions + Lieux -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+  <div class="card">
+    <div class="card-hd" style="padding-bottom:12px;">
+      <div class="card-title">Décès par région</div>
+    </div>
+    <div class="card-bd">
+      <div class="chart-box"><canvas id="chartRegions"></canvas></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hd" style="padding-bottom:12px;">
+      <div class="card-title">Lieux de décès</div>
+    </div>
+    <div class="card-bd" id="lieuxList">
+      <div class="loader"><div class="spinner"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Recent records -->
+<div class="card">
+  <div class="card-hd">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+      <div class="card-title">Derniers enregistrements</div>
+      <a href="/deces" class="btn btn-outline btn-sm"><i class="fa-solid fa-list"></i> Voir tout</a>
+    </div>
+  </div>
+  <div class="card-bd" style="padding-top:10px;">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>ID</th><th>Défunt</th><th>Âge</th><th>Cause</th><th>Lieu</th><th>Région</th><th>Date</th></tr>
+        </thead>
+        <tbody id="recentBody">
+          <tr><td colspan="7" class="loader"><div class="spinner"></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+Chart.defaults.color = 'rgba(255,255,255,.42)';
+Chart.defaults.font.family = "'Karla', sans-serif";
+Chart.defaults.borderColor = 'rgba(255,255,255,.06)';
+
+const CR = '#c0392b', CR2 = '#e74c3c', GD = '#d4a843', GD2 = '#e8c06d';
+const TL = '#27ae8f', SL = '#5d8aa8';
+const PALETTE = [CR, GD, TL, SL, '#8e44ad', '#2980b9', '#d35400', '#16a085', '#c0392b', '#7f8c8d'];
+
+async function loadDashboard() {
+  try {
+    const s = await api('/api/stats');
+
+    // KPIs
+    document.getElementById('kpi-total').textContent = s.total;
+    document.getElementById('kpi-mois').textContent  = s.ce_mois;
+    document.getElementById('kpi-age').textContent   = s.age_moyen + ' ans';
+    document.getElementById('kpi-ratio').textContent = Math.round((s.hommes/s.total)*100) + '% H';
+
+    // Monthly line chart
+    const mLabels = Object.keys(s.monthly).map(m => {
+      const [y, mo] = m.split('-');
+      return new Date(y, mo-1).toLocaleDateString('fr-FR', {month:'short', year:'2-digit'});
+    });
+    new Chart(document.getElementById('chartMonthly'), {
+      type: 'line',
+      data: {
+        labels: mLabels,
+        datasets: [{
+          label: 'Décès',
+          data: Object.values(s.monthly),
+          borderColor: CR, backgroundColor: 'rgba(192,57,43,.12)',
+          borderWidth: 2.5, fill: true, tension: 0.4,
+          pointBackgroundColor: CR, pointRadius: 5, pointHoverRadius: 7
+        }]
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ display:false } },
+        scales:{
+          x:{ grid:{ display:false } },
+          y:{ beginAtZero:true, grid:{ color:'rgba(255,255,255,.04)' } }
+        }
+      }
+    });
+
+    // Sexe doughnut
+    new Chart(document.getElementById('chartSexe'), {
+      type: 'doughnut',
+      data: {
+        labels: ['Hommes','Femmes'],
+        datasets: [{ data:[s.hommes, s.femmes], backgroundColor:[SL, GD], borderWidth:0 }]
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false, cutout:'68%',
+        plugins:{ legend:{ display:false } }
+      }
+    });
+    document.getElementById('sexeLegend').innerHTML = [
+      ['Hommes', SL, s.hommes],['Femmes', GD, s.femmes]
+    ].map(([l,c,v]) => `
+      <div style="display:flex;align-items:center;gap:7px;font-size:.82rem;">
+        <span style="width:10px;height:10px;border-radius:50%;background:${c};flex-shrink:0;"></span>
+        ${l} — <strong>${v}</strong>
+      </div>`).join('');
+
+    // Causes bar (horizontal)
+    const cLabels = Object.keys(s.causes);
+    new Chart(document.getElementById('chartCauses'), {
+      type: 'bar',
+      data: {
+        labels: cLabels,
+        datasets: [{
+          data: Object.values(s.causes),
+          backgroundColor: PALETTE.slice(0, cLabels.length).map(c => c+'cc'),
+          borderRadius: 5
+        }]
+      },
+      options: {
+        indexAxis: 'y', responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ display:false } },
+        scales:{
+          x:{ beginAtZero:true, grid:{ color:'rgba(255,255,255,.04)' } },
+          y:{ grid:{ display:false }, ticks:{ font:{ size:11 } } }
+        }
+      }
+    });
+
+    // Age bar
+    new Chart(document.getElementById('chartAge'), {
+      type: 'bar',
+      data: {
+        labels: Object.keys(s.tranches),
+        datasets: [{
+          data: Object.values(s.tranches),
+          backgroundColor: [TL+'cc', GD+'cc', SL+'cc', CR+'cc', '#8e44ad'+'cc'],
+          borderRadius: 6
+        }]
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ display:false } },
+        scales:{
+          x:{ grid:{ display:false } },
+          y:{ beginAtZero:true, grid:{ color:'rgba(255,255,255,.04)' } }
+        }
+      }
+    });
+
+    // Regions bar
+    new Chart(document.getElementById('chartRegions'), {
+      type: 'bar',
+      data: {
+        labels: Object.keys(s.regions),
+        datasets: [{
+          data: Object.values(s.regions),
+          backgroundColor: CR+'bb', borderRadius:5
+        }]
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ display:false } },
+        scales:{
+          x:{ grid:{ display:false }, ticks:{ font:{ size:10 } } },
+          y:{ beginAtZero:true, grid:{ color:'rgba(255,255,255,.04)' } }
+        }
+      }
+    });
+
+    // Lieux list
+    const lieuxEl = document.getElementById('lieuxList');
+    const lieuxArr = Object.entries(s.lieux).sort((a,b) => b[1]-a[1]);
+    const maxL = lieuxArr[0]?.[1] || 1;
+    lieuxEl.innerHTML = lieuxArr.map(([l, v]) => `
+      <div style="margin-bottom:12px;">
+        <div style="display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:5px;">
+          <span>${l}</span><strong>${v}</strong>
+        </div>
+        <div style="background:rgba(255,255,255,.06);border-radius:99px;height:5px;overflow:hidden;">
+          <div style="height:100%;border-radius:99px;background:var(--crimson);width:${Math.round(v/maxL*100)}%;transition:width .6s;"></div>
+        </div>
+      </div>`).join('');
+
+    // Recent table
+    const deces = await api('/api/deces');
+    const recent = deces.slice(0, 10);
+    document.getElementById('recentBody').innerHTML = recent.map(d => `
+      <tr>
+        <td><span class="badge bsl" style="font-size:.7rem;">${d.id}</span></td>
+        <td><strong>${d.prenom} ${d.nom}</strong></td>
+        <td>${d.age} ans</td>
+        <td><span class="badge bcr" style="font-size:.7rem;max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${d.cause_principale}</span></td>
+        <td style="font-size:.82rem;color:rgba(255,255,255,.6);">${d.lieu_deces}</td>
+        <td><span class="badge bsl">${d.region}</span></td>
+        <td>${new Date(d.date_deces).toLocaleDateString('fr-FR')}</td>
+      </tr>`).join('');
+
+  } catch(e) {
+    showToast('Erreur de chargement: ' + e.message, 'err');
+  }
+}
+
+loadDashboard();
+</script>
+{% endblock %}

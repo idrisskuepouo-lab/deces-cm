@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>REGISTRE NATIONAL DES DÉCÈS — Connexion</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Karla:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+  :root {
+    --ink: #0d1117;
+    --ink2: #161b22;
+    --panel: #1c2128;
+    --border: rgba(255,255,255,.08);
+    --crimson: #c0392b;
+    --crimson2: #e74c3c;
+    --gold: #d4a843;
+    --muted: rgba(255,255,255,.38);
+    --text: rgba(255,255,255,.87);
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Karla', sans-serif;
+    background: var(--ink);
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  /* LEFT PANEL */
+  .left {
+    background: var(--ink2);
+    display: flex; flex-direction: column;
+    justify-content: center; align-items: flex-start;
+    padding: 60px;
+    position: relative; overflow: hidden;
+    border-right: 1px solid var(--border);
+  }
+  .left::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse 80% 60% at 20% 80%, rgba(192,57,43,.12), transparent 60%),
+                radial-gradient(ellipse 60% 40% at 80% 20%, rgba(212,168,67,.06), transparent 50%);
+  }
+  .left-inner { position: relative; z-index: 1; }
+  .gov-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    border: 1px solid rgba(212,168,67,.3); border-radius: 4px;
+    padding: 6px 14px; margin-bottom: 40px;
+    font-size: .72rem; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--gold); font-weight: 600;
+  }
+  .gov-badge::before { content: '🇨🇲'; font-size: .9rem; }
+  .left h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 2.6rem; line-height: 1.15;
+    color: var(--text); font-weight: 700; margin-bottom: 20px;
+  }
+  .left h1 span { color: var(--crimson2); }
+  .left p {
+    font-size: .95rem; color: var(--muted); line-height: 1.75;
+    max-width: 380px; margin-bottom: 48px;
+  }
+  .stats-row {
+    display: flex; gap: 32px;
+  }
+  .stat-item .val {
+    font-family: 'Playfair Display', serif;
+    font-size: 2rem; font-weight: 700; color: var(--gold);
+  }
+  .stat-item .lbl {
+    font-size: .74rem; color: var(--muted); text-transform: uppercase;
+    letter-spacing: .08em; margin-top: 2px;
+  }
+  .divider-v { width: 1px; background: var(--border); }
+
+  /* Decorative lines */
+  .deco-lines {
+    position: absolute; right: -20px; top: 50%;
+    transform: translateY(-50%);
+    display: flex; gap: 6px;
+  }
+  .deco-line {
+    width: 2px; border-radius: 4px;
+    background: linear-gradient(to bottom, transparent, var(--crimson), transparent);
+    opacity: .4;
+  }
+
+  /* RIGHT PANEL */
+  .right {
+    display: flex; flex-direction: column;
+    justify-content: center; align-items: center;
+    padding: 48px 40px;
+  }
+  .form-box { width: 100%; max-width: 400px; }
+  .form-header { margin-bottom: 36px; }
+  .form-header h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.7rem; font-weight: 700; color: var(--text); margin-bottom: 6px;
+  }
+  .form-header p { font-size: .88rem; color: var(--muted); }
+
+  .form-group { margin-bottom: 20px; }
+  .form-label {
+    display: block; font-size: .74rem; font-weight: 600;
+    text-transform: uppercase; letter-spacing: .1em;
+    color: var(--muted); margin-bottom: 9px;
+  }
+  .input-wrap { position: relative; }
+  .input-icon {
+    position: absolute; left: 16px; top: 50%; transform: translateY(-50%);
+    color: rgba(255,255,255,.2); font-size: .9rem;
+  }
+  .form-control {
+    width: 100%;
+    padding: 13px 16px 13px 44px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'Karla', sans-serif; font-size: .95rem;
+    outline: none; transition: border .2s, box-shadow .2s;
+  }
+  .form-control::placeholder { color: rgba(255,255,255,.18); }
+  .form-control:focus {
+    border-color: var(--crimson);
+    box-shadow: 0 0 0 3px rgba(192,57,43,.15);
+  }
+  .btn-eye {
+    position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+    background: none; border: none; color: rgba(255,255,255,.2);
+    cursor: pointer; transition: color .2s; font-size: .9rem;
+  }
+  .btn-eye:hover { color: rgba(255,255,255,.5); }
+
+  .btn-login {
+    width: 100%; padding: 14px;
+    background: var(--crimson);
+    border: none; border-radius: 8px;
+    color: white; font-family: 'Karla', sans-serif;
+    font-size: 1rem; font-weight: 700;
+    cursor: pointer; margin-top: 8px;
+    transition: background .2s, transform .15s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    letter-spacing: .03em;
+  }
+  .btn-login:hover { background: var(--crimson2); transform: translateY(-1px); }
+
+  .error-box {
+    display: none; margin-top: 14px;
+    background: rgba(192,57,43,.12); border: 1px solid rgba(192,57,43,.3);
+    border-radius: 7px; padding: 11px 14px;
+    font-size: .84rem; color: #e88; display: none;
+    align-items: center; gap: 8px;
+  }
+  .creds-box {
+    margin-top: 28px; padding: 16px 18px;
+    background: rgba(212,168,67,.06); border: 1px solid rgba(212,168,67,.15);
+    border-radius: 8px;
+  }
+  .creds-title {
+    font-size: .72rem; text-transform: uppercase; letter-spacing: .1em;
+    color: var(--gold); font-weight: 700; margin-bottom: 10px;
+  }
+  .cred-line {
+    font-size: .82rem; color: var(--muted); margin-bottom: 4px; line-height: 1.6;
+  }
+  .cred-line strong { color: rgba(255,255,255,.65); }
+
+  .spinner {
+    width: 17px; height: 17px; border: 2px solid rgba(255,255,255,.25);
+    border-top-color: white; border-radius: 50%;
+    animation: spin .6s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  @media (max-width: 768px) {
+    body { grid-template-columns: 1fr; }
+    .left { display: none; }
+    .right { padding: 40px 24px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Panneau gauche -->
+<div class="left">
+  <div class="left-inner">
+    <div class="gov-badge">République du Cameroun</div>
+    <h1>Registre National<br>des <span>Décès</span></h1>
+    <p>
+      Plateforme officielle de collecte, d'enregistrement et d'analyse
+      des données sur les décès. Causes, lieux, démographie — une vision
+      complète pour une politique de santé éclairée.
+    </p>
+    <div class="stats-row">
+      <div class="stat-item">
+        <div class="val">10</div>
+        <div class="lbl">Régions couvertes</div>
+      </div>
+      <div class="divider-v"></div>
+      <div class="stat-item">
+        <div class="val">21+</div>
+        <div class="lbl">Causes recensées</div>
+      </div>
+      <div class="divider-v"></div>
+      <div class="stat-item">
+        <div class="val">24/7</div>
+        <div class="lbl">Disponibilité</div>
+      </div>
+    </div>
+  </div>
+  <div class="deco-lines">
+    <div class="deco-line" style="height:140px;"></div>
+    <div class="deco-line" style="height:200px;"></div>
+    <div class="deco-line" style="height:100px;"></div>
+  </div>
+</div>
+
+<!-- Panneau droit — Formulaire -->
+<div class="right">
+  <div class="form-box">
+    <div class="form-header">
+      <h2>Connexion</h2>
+      <p>Accès réservé au personnel autorisé</p>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Adresse e-mail</label>
+      <div class="input-wrap">
+        <i class="fa-solid fa-envelope input-icon"></i>
+        <input type="email" id="email" class="form-control" placeholder="utilisateur@deces-cm.cm">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Mot de passe</label>
+      <div class="input-wrap">
+        <i class="fa-solid fa-lock input-icon"></i>
+        <input type="password" id="password" class="form-control" placeholder="••••••••">
+        <button class="btn-eye" id="eyeBtn" type="button">
+          <i class="fa-solid fa-eye" id="eyeIc"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="error-box" id="errBox">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <span id="errMsg">Identifiants incorrects.</span>
+    </div>
+
+    <button class="btn-login" id="loginBtn">
+      <span id="btnTxt">Accéder au système</span>
+      <i class="fa-solid fa-arrow-right" id="btnIc"></i>
+    </button>
+
+    <div class="creds-box">
+      <div class="creds-title">🔑 Comptes de démonstration</div>
+      <div class="cred-line"><strong>Administrateur :</strong> admin@deces-cm.cm / Admin@2024</div>
+      <div class="cred-line"><strong>Agent :</strong> paul.atangana@deces-cm.cm / Agent@2024</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.getElementById('eyeBtn').addEventListener('click', () => {
+    const p = document.getElementById('password');
+    const i = document.getElementById('eyeIc');
+    p.type = p.type === 'password' ? 'text' : 'password';
+    i.className = p.type === 'password' ? 'fa-solid fa-eye' : 'fa-solid fa-eye-slash';
+  });
+  document.getElementById('password').addEventListener('keyup', e => {
+    if (e.key === 'Enter') document.getElementById('loginBtn').click();
+  });
+  document.getElementById('loginBtn').addEventListener('click', async () => {
+    const email    = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    const btn = document.getElementById('loginBtn');
+    const errBox = document.getElementById('errBox');
+    if (!email || !password) {
+      errBox.style.display = 'flex';
+      document.getElementById('errMsg').textContent = 'Veuillez remplir tous les champs.';
+      return;
+    }
+    btn.innerHTML = '<div class="spinner"></div>';
+    btn.disabled = true;
+    errBox.style.display = 'none';
+    try {
+      const res  = await fetch('/login', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({email, password})
+      });
+      const data = await res.json();
+      if (data.success) {
+        window.location.href = '/dashboard';
+      } else {
+        errBox.style.display = 'flex';
+        document.getElementById('errMsg').textContent = data.message || 'Erreur de connexion.';
+        btn.innerHTML = '<span>Accéder au système</span><i class="fa-solid fa-arrow-right"></i>';
+        btn.disabled = false;
+      }
+    } catch {
+      errBox.style.display = 'flex';
+      document.getElementById('errMsg').textContent = 'Impossible de joindre le serveur.';
+      btn.innerHTML = '<span>Accéder au système</span><i class="fa-solid fa-arrow-right"></i>';
+      btn.disabled = false;
+    }
+  });
+</script>
+</body>
+</html>

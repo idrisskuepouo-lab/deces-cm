@@ -1,0 +1,433 @@
+{% extends "base.html" %}
+{% block title %}Registre des décès{% endblock %}
+{% block page_title %}Registre des décès{% endblock %}
+
+{% block content %}
+
+<!-- Toolbar -->
+<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:18px;">
+  <div class="search-bar" style="flex:1;min-width:200px;">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <input type="text" id="searchInput" placeholder="Rechercher par nom, ID…" oninput="applyFilters()">
+  </div>
+  <select class="form-control" id="fRegion" style="width:auto;padding:9px 12px;" onchange="applyFilters()">
+    <option value="">Toutes régions</option>
+    {% for r in regions %}<option>{{ r }}</option>{% endfor %}
+  </select>
+  <select class="form-control" id="fCause" style="width:auto;padding:9px 12px;" onchange="applyFilters()">
+    <option value="">Toutes causes</option>
+    {% for c in causes %}<option>{{ c }}</option>{% endfor %}
+  </select>
+  <select class="form-control" id="fSexe" style="width:auto;padding:9px 12px;" onchange="applyFilters()">
+    <option value="">Tout sexe</option>
+    <option value="M">Masculin</option>
+    <option value="F">Féminin</option>
+  </select>
+  <button class="btn btn-primary" onclick="openModal('modalEnreg')">
+    <i class="fa-solid fa-plus"></i> Nouvel enregistrement
+  </button>
+  <button class="btn btn-gold" onclick="exportCSV()">
+    <i class="fa-solid fa-file-csv"></i> Exporter CSV
+  </button>
+</div>
+
+<!-- Stats mini-bar -->
+<div style="display:flex;gap:12px;margin-bottom:18px;flex-wrap:wrap;" id="miniStats"></div>
+
+<!-- Table -->
+<div class="card">
+  <div class="card-bd" style="padding:0;">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th><th>Défunt(e)</th><th>Âge</th><th>Sexe</th>
+            <th>Cause principale</th><th>Lieu de décès</th>
+            <th>Région</th><th>Date décès</th><th>Déclaré par</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="decesTbody">
+          <tr><td colspan="10"><div class="loader"><div class="spinner"></div></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="padding:14px 18px;border-top:1px solid var(--border);font-size:.8rem;color:var(--muted);">
+      <span id="countLabel">Chargement…</span>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL: Enregistrement ─────────────────── -->
+<div class="modal-overlay" id="modalEnreg">
+  <div class="modal">
+    <div class="modal-hd">
+      <h3 class="card-title" style="font-size:1.05rem;">
+        <i class="fa-solid fa-file-medical" style="color:var(--crimson);margin-right:8px;"></i>
+        Enregistrement d'un décès
+      </h3>
+      <button class="btn-close" data-close="modalEnreg">✕</button>
+    </div>
+    <div class="modal-bd">
+
+      <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.1em;color:var(--gold);font-weight:700;margin-bottom:12px;">
+        Identité du défunt
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Nom *</label>
+          <input class="form-control" id="e-nom" placeholder="MVONDO" type="text">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Prénom *</label>
+          <input class="form-control" id="e-prenom" placeholder="Jean" type="text">
+        </div>
+      </div>
+      <div class="form-grid-3">
+        <div class="form-group">
+          <label class="form-label">Âge *</label>
+          <input class="form-control" id="e-age" type="number" min="0" max="130" placeholder="45">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Sexe *</label>
+          <select class="form-control" id="e-sexe">
+            <option value="">--</option>
+            <option value="M">Masculin</option>
+            <option value="F">Féminin</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Profession</label>
+          <select class="form-control" id="e-profession">
+            <option value="">--</option>
+            <option>Agriculteur</option><option>Commerçant</option>
+            <option>Fonctionnaire</option><option>Enseignant</option>
+            <option>Sans emploi</option><option>Retraité</option>
+            <option>Élève/Étudiant</option><option>Médecin/Infirmier</option>
+            <option>Autre</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="section-sep"></div>
+      <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.1em;color:var(--gold);font-weight:700;margin-bottom:12px;">
+        Lieu & Date du décès
+      </div>
+
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Région *</label>
+          <select class="form-control" id="e-region">
+            <option value="">-- Sélectionner --</option>
+            {% for r in regions %}<option>{{ r }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Arrondissement</label>
+          <input class="form-control" id="e-arrt" placeholder="Ex : Yaoundé VI" type="text">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Lieu de décès *</label>
+        <select class="form-control" id="e-lieu">
+          <option value="">-- Sélectionner --</option>
+          {% for l in lieux %}<option>{{ l }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Date de décès *</label>
+          <input class="form-control" id="e-date" type="date">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Heure (si connue)</label>
+          <input class="form-control" id="e-heure" type="time">
+        </div>
+      </div>
+
+      <div class="section-sep"></div>
+      <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.1em;color:var(--gold);font-weight:700;margin-bottom:12px;">
+        Cause du décès
+      </div>
+
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Cause principale *</label>
+          <select class="form-control" id="e-cause">
+            <option value="">-- Sélectionner --</option>
+            {% for c in causes %}<option>{{ c }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Cause secondaire</label>
+          <select class="form-control" id="e-cause2">
+            <option value="">Aucune</option>
+            {% for c in causes %}<option>{{ c }}</option>{% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Décès déclaré par</label>
+        <select class="form-control" id="e-declare">
+          <option>Agent de santé</option>
+          <option>Médecin</option>
+          <option>Famille</option>
+          <option>Autorité locale</option>
+          <option>Forces de l'ordre</option>
+          <option>Autre</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Observations / Remarques</label>
+        <textarea class="form-control" id="e-obs" placeholder="Informations complémentaires…"></textarea>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-outline" data-close="modalEnreg">Annuler</button>
+      <button class="btn btn-primary" id="btnSave" onclick="saveRecord()">
+        <i class="fa-solid fa-save"></i> Enregistrer le décès
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL: Fiche détail ─────────────────── -->
+<div class="modal-overlay" id="modalDetail">
+  <div class="modal" style="width:min(640px,96vw);">
+    <div class="modal-hd">
+      <h3 class="card-title" id="detailTitle" style="font-size:1.05rem;">Fiche de décès</h3>
+      <button class="btn-close" data-close="modalDetail">✕</button>
+    </div>
+    <div class="modal-bd" id="detailBody">
+      <div class="loader"><div class="spinner"></div></div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let allRecords = [];
+
+// Set today as default date
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('e-date').value = new Date().toISOString().slice(0,10);
+});
+
+async function loadRecords() {
+  try {
+    allRecords = await api('/api/deces');
+    renderTable(allRecords);
+    updateMiniStats(allRecords);
+  } catch(e) {
+    showToast(e.message, 'err');
+  }
+}
+
+function updateMiniStats(list) {
+  const total  = list.length;
+  const hommes = list.filter(d => d.sexe === 'M').length;
+  const femmes = total - hommes;
+  const avgAge = total ? Math.round(list.reduce((s,d) => s+d.age, 0)/total) : 0;
+  document.getElementById('miniStats').innerHTML = [
+    ['⚰ Total', total, 'bcr'],
+    ['♂ Hommes', hommes, 'bm'],
+    ['♀ Femmes', femmes, 'bf'],
+    ['⌀ Âge moy.', avgAge+' ans', 'bgr']
+  ].map(([l,v,cls]) => `
+    <div style="background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;display:flex;align-items:center;gap:10px;">
+      <span class="badge ${cls}" style="font-size:.78rem;">${l}</span>
+      <strong style="font-family:'Playfair Display',serif;font-size:1.1rem;">${v}</strong>
+    </div>`).join('');
+}
+
+function renderTable(list) {
+  const tbody = document.getElementById('decesTbody');
+  document.getElementById('countLabel').textContent =
+    `${list.length} enregistrement${list.length !== 1 ? 's' : ''} affiché${list.length !== 1 ? 's' : ''}`;
+  if (!list.length) {
+    tbody.innerHTML = `<tr><td colspan="10">
+      <div class="empty-state">
+        <i class="fa-solid fa-folder-open"></i>
+        Aucun enregistrement trouvé
+      </div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = list.map(d => `
+    <tr>
+      <td><span class="badge bsl" style="font-size:.68rem;">${d.id}</span></td>
+      <td>
+        <div style="font-weight:600;">${d.prenom} ${d.nom}</div>
+        ${d.profession_defunt ? `<div style="font-size:.74rem;color:var(--muted);">${d.profession_defunt}</div>` : ''}
+      </td>
+      <td>${d.age} ans</td>
+      <td><span class="badge ${d.sexe==='M'?'bm':'bf'}">${d.sexe==='M'?'♂ M':'♀ F'}</span></td>
+      <td>
+        <span class="badge bcr" style="font-size:.7rem;max-width:150px;display:inline-block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${d.cause_principale}">
+          ${d.cause_principale}
+        </span>
+        ${d.cause_secondaire ? `<div style="font-size:.72rem;color:var(--muted);margin-top:3px;">${d.cause_secondaire}</div>` : ''}
+      </td>
+      <td style="font-size:.82rem;color:rgba(255,255,255,.65);">${d.lieu_deces}</td>
+      <td><span class="badge bsl" style="font-size:.7rem;">${d.region}</span></td>
+      <td>
+        <div>${new Date(d.date_deces).toLocaleDateString('fr-FR')}</div>
+        ${d.heure_deces ? `<div style="font-size:.72rem;color:var(--muted);">${d.heure_deces}</div>` : ''}
+      </td>
+      <td style="font-size:.8rem;color:var(--muted);">${d.declare_par}</td>
+      <td>
+        <div style="display:flex;gap:5px;">
+          <button class="btn btn-outline btn-sm btn-icon" title="Voir fiche" onclick="viewRecord('${d.id}')">
+            <i class="fa-solid fa-eye"></i>
+          </button>
+          {% if role == 'admin' %}
+          <button class="btn btn-sm btn-icon" style="background:rgba(192,57,43,.15);color:#f08070;border:1px solid rgba(192,57,43,.2);" title="Supprimer" onclick="deleteRecord('${d.id}','${d.prenom} ${d.nom}')">
+            <i class="fa-solid fa-trash"></i>
+          </button>
+          {% endif %}
+        </div>
+      </td>
+    </tr>`).join('');
+}
+
+function applyFilters() {
+  const search  = document.getElementById('searchInput').value.toLowerCase();
+  const region  = document.getElementById('fRegion').value;
+  const cause   = document.getElementById('fCause').value;
+  const sexe    = document.getElementById('fSexe').value;
+  const filtered = allRecords.filter(d => {
+    const matchS = !search || (d.nom+' '+d.prenom).toLowerCase().includes(search) || d.id.toLowerCase().includes(search);
+    const matchR = !region || d.region === region;
+    const matchC = !cause  || d.cause_principale === cause;
+    const matchX = !sexe   || d.sexe === sexe;
+    return matchS && matchR && matchC && matchX;
+  });
+  renderTable(filtered);
+  updateMiniStats(filtered);
+}
+
+async function saveRecord() {
+  const payload = {
+    nom:               document.getElementById('e-nom').value.trim(),
+    prenom:            document.getElementById('e-prenom').value.trim(),
+    age:               document.getElementById('e-age').value,
+    sexe:              document.getElementById('e-sexe').value,
+    region:            document.getElementById('e-region').value,
+    arrondissement:    document.getElementById('e-arrt').value.trim(),
+    cause_principale:  document.getElementById('e-cause').value,
+    cause_secondaire:  document.getElementById('e-cause2').value,
+    lieu_deces:        document.getElementById('e-lieu').value,
+    date_deces:        document.getElementById('e-date').value,
+    heure_deces:       document.getElementById('e-heure').value,
+    declare_par:       document.getElementById('e-declare').value,
+    profession_defunt: document.getElementById('e-profession').value,
+    observations:      document.getElementById('e-obs').value.trim()
+  };
+
+  const required = ['nom','prenom','age','sexe','region','cause_principale','lieu_deces','date_deces'];
+  const missing  = required.filter(k => !String(payload[k]).trim());
+  if (missing.length) {
+    showToast('Champs obligatoires manquants (*)', 'err');
+    return;
+  }
+
+  const btn = document.getElementById('btnSave');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner" style="width:15px;height:15px;"></div>';
+
+  try {
+    await api('/api/deces', {method:'POST', body: JSON.stringify(payload)});
+    closeModal('modalEnreg');
+    showToast('Décès enregistré avec succès !');
+    // Reset form
+    ['e-nom','e-prenom','e-age','e-arrt','e-obs'].forEach(id => document.getElementById(id).value = '');
+    ['e-sexe','e-region','e-cause','e-cause2','e-lieu','e-profession'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('e-date').value = new Date().toISOString().slice(0,10);
+    document.getElementById('e-heure').value = '';
+    await loadRecords();
+  } catch(e) {
+    showToast(e.message, 'err');
+  }
+  btn.disabled = false;
+  btn.innerHTML = '<i class="fa-solid fa-save"></i> Enregistrer le décès';
+}
+
+async function viewRecord(id) {
+  openModal('modalDetail');
+  document.getElementById('detailBody').innerHTML = '<div class="loader"><div class="spinner"></div></div>';
+  try {
+    const d = await api('/api/deces/' + id);
+    document.getElementById('detailTitle').textContent = `⚰ ${d.prenom} ${d.nom}`;
+    const section = (title, fields) => `
+      <div style="margin-bottom:20px;">
+        <div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.12em;color:var(--gold);font-weight:700;margin-bottom:12px;">${title}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          ${fields.map(([k,v]) => `
+            <div style="background:var(--panel);border-radius:8px;padding:11px 14px;border:1px solid var(--border);">
+              <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600;margin-bottom:4px;">${k}</div>
+              <div style="font-weight:600;font-size:.88rem;">${v || '—'}</div>
+            </div>`).join('')}
+        </div>
+      </div>`;
+    document.getElementById('detailBody').innerHTML =
+      section('Identité', [
+        ['ID Registre', d.id], ['Nom complet', d.prenom+' '+d.nom],
+        ['Âge', d.age+' ans'], ['Sexe', d.sexe==='M'?'♂ Masculin':'♀ Féminin'],
+        ['Profession', d.profession_defunt]
+      ]) +
+      section('Lieu & Date', [
+        ['Date du décès', new Date(d.date_deces).toLocaleDateString('fr-FR')],
+        ['Heure', d.heure_deces],
+        ['Région', d.region], ['Arrondissement', d.arrondissement],
+        ['Lieu de décès', d.lieu_deces]
+      ]) +
+      section('Cause & Déclaration', [
+        ['Cause principale', d.cause_principale],
+        ['Cause secondaire', d.cause_secondaire],
+        ['Déclaré par', d.declare_par],
+        ['Enregistré le', new Date(d.created_at).toLocaleString('fr-FR')]
+      ]) +
+      (d.observations ? `
+        <div style="background:var(--panel);border-radius:8px;padding:14px;border:1px solid var(--border);">
+          <div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;color:var(--gold);font-weight:700;margin-bottom:8px;">Observations</div>
+          <div style="font-size:.87rem;line-height:1.6;color:rgba(255,255,255,.75);">${d.observations}</div>
+        </div>` : '');
+  } catch(e) {
+    showToast(e.message, 'err');
+    closeModal('modalDetail');
+  }
+}
+
+async function deleteRecord(id, name) {
+  if (!confirm(`Supprimer définitivement le dossier de ${name} (${id}) ?\nCette action est irréversible.`)) return;
+  try {
+    await api('/api/deces/'+id, {method:'DELETE'});
+    showToast('Enregistrement supprimé');
+    await loadRecords();
+  } catch(e) {
+    showToast(e.message, 'err');
+  }
+}
+
+async function exportCSV() {
+  const data = allRecords;
+  if (!data.length) { showToast('Aucune donnée à exporter', 'err'); return; }
+  const headers = ['ID','Nom','Prénom','Âge','Sexe','Région','Arrondissement',
+    'Cause principale','Cause secondaire','Lieu de décès','Date décès','Heure',
+    'Déclaré par','Profession','Observations'];
+  const rows = data.map(d => [
+    d.id, d.nom, d.prenom, d.age, d.sexe, d.region, d.arrondissement,
+    d.cause_principale, d.cause_secondaire, d.lieu_deces, d.date_deces,
+    d.heure_deces, d.declare_par, d.profession_defunt, d.observations
+  ].map(v => `"${String(v||'').replace(/"/g,'""')}"`));
+  const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,\uFEFF' + encodeURIComponent(csv);
+  a.download = `registre_deces_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  showToast('Export CSV téléchargé !');
+}
+
+loadRecords();
+</script>
+{% endblock %}

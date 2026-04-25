@@ -1,0 +1,279 @@
+{% extends "base.html" %}
+{% block title %}Rapports & Analyses — Registre National des Décès{% endblock %}
+{% block page_title %}Rapports & Analyses{% endblock %}
+{% block head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+
+<!-- Filter bar -->
+<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:22px;background:var(--ink2);border:1px solid var(--border);border-radius:10px;padding:16px 18px;">
+  <div style="font-family:'Playfair Display',serif;font-size:.95rem;font-weight:600;margin-right:8px;white-space:nowrap;">
+    <i class="fa-solid fa-filter" style="color:var(--crimson);margin-right:7px;"></i>Filtrer la période
+  </div>
+  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+    <label style="font-size:.78rem;color:var(--muted);">Du</label>
+    <input type="date" id="rDateMin" class="form-control" style="width:160px;padding:8px 11px;">
+    <label style="font-size:.78rem;color:var(--muted);">Au</label>
+    <input type="date" id="rDateMax" class="form-control" style="width:160px;padding:8px 11px;">
+    <button class="btn btn-primary btn-sm" onclick="loadRapport()">
+      <i class="fa-solid fa-rotate"></i> Actualiser
+    </button>
+    <button class="btn btn-gold btn-sm" onclick="resetFilters()">
+      <i class="fa-solid fa-times"></i> Réinitialiser
+    </button>
+  </div>
+</div>
+
+<!-- Summary cards -->
+<div class="stats-grid" id="summaryGrid">
+  <div class="sc crimson"><div class="sc-icon crimson"><i class="fa-solid fa-skull"></i></div><div class="sc-val" id="r-total">—</div><div class="sc-lbl">Total décès (période)</div></div>
+  <div class="sc gold"><div class="sc-icon gold"><i class="fa-solid fa-virus"></i></div><div class="sc-val" id="r-cause1">—</div><div class="sc-lbl">Cause n°1</div></div>
+  <div class="sc teal"><div class="sc-icon teal"><i class="fa-solid fa-hospital"></i></div><div class="sc-val" id="r-lieu1">—</div><div class="sc-lbl">Lieu le plus fréquent</div></div>
+  <div class="sc slate"><div class="sc-icon slate"><i class="fa-solid fa-map-marker-alt"></i></div><div class="sc-val" id="r-region1">—</div><div class="sc-lbl">Région la plus touchée</div></div>
+</div>
+
+<!-- Analysis grid -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+  <div class="card">
+    <div class="card-hd" style="padding-bottom:12px;">
+      <div class="card-title">Mortalité : Hommes vs Femmes (par tranche d'âge)</div>
+    </div>
+    <div class="card-bd">
+      <div class="chart-box" style="height:250px;"><canvas id="rChartHF"></canvas></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hd" style="padding-bottom:12px;">
+      <div class="card-title">Top 10 des causes de décès</div>
+    </div>
+    <div class="card-bd">
+      <div id="causesRanking"></div>
+    </div>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1.2fr 1fr;gap:16px;margin-bottom:16px;">
+  <div class="card">
+    <div class="card-hd" style="padding-bottom:12px;">
+      <div class="card-title">Distribution géographique — Décès par région</div>
+    </div>
+    <div class="card-bd">
+      <div class="chart-box" style="height:260px;"><canvas id="rChartGeo"></canvas></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hd" style="padding-bottom:12px;">
+      <div class="card-title">Lieux de décès — Distribution</div>
+    </div>
+    <div class="card-bd">
+      <div class="chart-box" style="height:260px;"><canvas id="rChartLieu"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- Table résumé causes × régions -->
+<div class="card">
+  <div class="card-hd">
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+      <div class="card-title">Tableau croisé : Causes × Régions</div>
+      <button class="btn btn-gold btn-sm" onclick="exportRapportCSV()">
+        <i class="fa-solid fa-file-csv"></i> Exporter
+      </button>
+    </div>
+  </div>
+  <div class="card-bd" style="padding-top:10px;">
+    <div class="table-wrap" id="crossTable">
+      <div class="loader"><div class="spinner"></div></div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+Chart.defaults.color = 'rgba(255,255,255,.42)';
+Chart.defaults.font.family = "'Karla',sans-serif";
+Chart.defaults.borderColor = 'rgba(255,255,255,.06)';
+
+const CR = '#c0392b', GD = '#d4a843', TL = '#27ae8f', SL = '#5d8aa8';
+const PAL = [CR, GD, TL, SL, '#8e44ad','#2980b9','#d35400','#16a085','#7f8c8d','#27ae60'];
+
+let currentData = [];
+let charts = {};
+
+async function loadRapport() {
+  // Build query params
+  const dateMin = document.getElementById('rDateMin').value;
+  const dateMax = document.getElementById('rDateMax').value;
+  let url = '/api/deces?';
+  if (dateMin) url += `date_min=${dateMin}&`;
+  if (dateMax) url += `date_max=${dateMax}&`;
+
+  try {
+    currentData = await api(url);
+    renderRapport(currentData);
+  } catch(e) {
+    showToast(e.message, 'err');
+  }
+}
+
+function resetFilters() {
+  document.getElementById('rDateMin').value = '';
+  document.getElementById('rDateMax').value = '';
+  loadRapport();
+}
+
+function compute(data) {
+  const causes = {}, lieux = {}, regions = {};
+  const byAgeM = {"0-14":0,"15-24":0,"25-44":0,"45-64":0,"65+":0};
+  const byAgeF = {"0-14":0,"15-24":0,"25-44":0,"45-64":0,"65+":0};
+
+  for (const d of data) {
+    causes[d.cause_principale]  = (causes[d.cause_principale]  || 0) + 1;
+    lieux[d.lieu_deces]         = (lieux[d.lieu_deces]         || 0) + 1;
+    regions[d.region]           = (regions[d.region]           || 0) + 1;
+    const a = d.age;
+    const bucket = a<15?"0-14":a<25?"15-24":a<45?"25-44":a<65?"45-64":"65+";
+    if (d.sexe === 'M') byAgeM[bucket]++;
+    else byAgeF[bucket]++;
+  }
+  return { causes, lieux, regions, byAgeM, byAgeF };
+}
+
+function destroyCharts() {
+  Object.values(charts).forEach(c => c.destroy());
+  charts = {};
+}
+
+function renderRapport(data) {
+  destroyCharts();
+  const total = data.length;
+  const { causes, lieux, regions, byAgeM, byAgeF } = compute(data);
+
+  const topCause  = Object.entries(causes).sort((a,b)=>b[1]-a[1])[0];
+  const topLieu   = Object.entries(lieux).sort((a,b)=>b[1]-a[1])[0];
+  const topRegion = Object.entries(regions).sort((a,b)=>b[1]-a[1])[0];
+
+  document.getElementById('r-total').textContent   = total;
+  document.getElementById('r-cause1').textContent  = topCause?.[0]?.split(' ')[0] || '—';
+  document.getElementById('r-lieu1').textContent   = topLieu?.[0]?.split(' ')[0] || '—';
+  document.getElementById('r-region1').textContent = topRegion?.[0] || '—';
+
+  // H/F par tranche
+  const ageBuckets = Object.keys(byAgeM);
+  charts.hf = new Chart(document.getElementById('rChartHF'), {
+    type: 'bar',
+    data: {
+      labels: ageBuckets,
+      datasets: [
+        {label:'Hommes', data: Object.values(byAgeM), backgroundColor: SL+'cc', borderRadius:5},
+        {label:'Femmes', data: Object.values(byAgeF), backgroundColor: GD+'cc', borderRadius:5}
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ position:'top', labels:{ boxWidth:12, padding:14 } } },
+      scales:{
+        x:{ grid:{ display:false } },
+        y:{ beginAtZero:true, grid:{ color:'rgba(255,255,255,.04)' } }
+      }
+    }
+  });
+
+  // Ranking causes
+  const topCauses = Object.entries(causes).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const maxC = topCauses[0]?.[1] || 1;
+  document.getElementById('causesRanking').innerHTML = topCauses.map(([c,v], i) => `
+    <div style="margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:5px;">
+        <span><span style="color:var(--muted);font-size:.74rem;margin-right:6px;">#${i+1}</span>${c}</span>
+        <strong>${v}</strong>
+      </div>
+      <div style="background:rgba(255,255,255,.05);border-radius:99px;height:5px;overflow:hidden;">
+        <div style="height:100%;background:${PAL[i%PAL.length]};border-radius:99px;width:${Math.round(v/maxC*100)}%;"></div>
+      </div>
+    </div>`).join('');
+
+  // Geo radar / polar
+  charts.geo = new Chart(document.getElementById('rChartGeo'), {
+    type: 'polarArea',
+    data: {
+      labels: Object.keys(regions),
+      datasets:[{data:Object.values(regions), backgroundColor: Object.keys(regions).map((_,i)=>PAL[i%PAL.length]+'99'), borderWidth:1, borderColor: Object.keys(regions).map((_,i)=>PAL[i%PAL.length])}]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ position:'right', labels:{ boxWidth:10, font:{size:10}, padding:8 } } },
+      scales:{ r:{ grid:{ color:'rgba(255,255,255,.06)' }, ticks:{ display:false } } }
+    }
+  });
+
+  // Lieu doughnut
+  charts.lieu = new Chart(document.getElementById('rChartLieu'), {
+    type: 'doughnut',
+    data: {
+      labels: Object.keys(lieux),
+      datasets:[{data: Object.values(lieux), backgroundColor: Object.keys(lieux).map((_,i)=>PAL[i%PAL.length]), borderWidth:0}]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false, cutout:'55%',
+      plugins:{ legend:{ position:'bottom', labels:{ boxWidth:10, font:{size:10}, padding:8 } } }
+    }
+  });
+
+  // Cross table: top 5 causes × top 5 regions
+  const top5C = Object.entries(causes).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([c])=>c);
+  const top5R = Object.entries(regions).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([r])=>r);
+  const cross = {};
+  for (const d of data) {
+    if (top5C.includes(d.cause_principale) && top5R.includes(d.region)) {
+      const key = d.cause_principale;
+      if (!cross[key]) cross[key] = {};
+      cross[key][d.region] = (cross[key][d.region]||0) + 1;
+    }
+  }
+  const tableHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th>Cause</th>
+          ${top5R.map(r=>`<th>${r}</th>`).join('')}
+          <th>Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${top5C.map(c => {
+          const row = cross[c] || {};
+          const total = top5R.reduce((s,r)=>s+(row[r]||0),0);
+          return `<tr>
+            <td><span class="badge bcr" style="font-size:.72rem;">${c}</span></td>
+            ${top5R.map(r => `<td style="text-align:center;font-weight:${row[r]?'600':'400'};color:${row[r]?'var(--text)':'var(--muted)'}">${row[r]||'—'}</td>`).join('')}
+            <td style="text-align:center;font-weight:700;color:var(--gold);">${total}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+  document.getElementById('crossTable').innerHTML = tableHTML;
+}
+
+async function exportRapportCSV() {
+  if (!currentData.length) { showToast('Aucune donnée', 'err'); return; }
+  const headers = ['ID','Nom','Prénom','Âge','Sexe','Région','Cause principale','Lieu de décès','Date'];
+  const rows = currentData.map(d => [
+    d.id, d.nom, d.prenom, d.age, d.sexe, d.region,
+    d.cause_principale, d.lieu_deces, d.date_deces
+  ].map(v=>`"${String(v||'').replace(/"/g,'""')}"`));
+  const csv = [headers.join(','), ...rows.map(r=>r.join(','))].join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
+  a.download = `rapport_deces_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  showToast('Rapport exporté !');
+}
+
+loadRapport();
+</script>
+{% endblock %}
