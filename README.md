@@ -46,8 +46,8 @@ Vercel génère automatiquement : `https://deces-cm-xxxx.vercel.app`
 ## 🔑 Comptes de démonstration
 | Rôle         | Email                          | Mot de passe |
 |--------------|--------------------------------|--------------|
-| Administrateur | admin@deces-cm.cm            | Admin@2024   |
-| Agent terrain  | paul.atangana@deces-cm.cm    | Agent@2024   |
+| Administrateur|idriss.kuepouo@facsciences-uy1 | Admin@2024   |
+| Agent terrain | paul.atangana@deces-cm.cm     | Agent@2024   |
 
 ---
 
