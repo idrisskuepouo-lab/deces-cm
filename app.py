@@ -16,7 +16,7 @@ DB = {
             "id": "admin-001",
             "nom": "ADMINISTRATEUR",
             "prenom": "Système",
-            "email": "admin@deces-cm.cm",
+            "email": "idriss.kuepouo@facsciences-uy1.cm",
             "password": hashlib.sha256("Admin@2024".encode()).hexdigest(),
             "role": "admin",
             "created_at": datetime.now().isoformat()
